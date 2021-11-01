@@ -6,9 +6,9 @@ import numpy as np
 import random, math
 
 #画像が保存されているルートディレクトリのパス
-root_dir = "/Users/ayano/Downloads/neko_collector-main/neko_collector/Face"
+root_dir = "/Users/ayano/Downloads/neko_collector-main/neko_collector"
 # 商品名
-categories = ["sinkeisitu", "otonasi", "natukko", "yancha"]
+categories = ["otonasi", "yancha"]
 
 # 画像データ用配列
 X = []
@@ -39,7 +39,7 @@ allfiles = []
 
 #カテゴリ配列の各値と、それに対応するidxを認識し、全データをallfilesにまとめる
 for idx, cat in enumerate(categories):
-    image_dir = root_dir + "/" + cat + "_face"
+    image_dir = root_dir + "/" + cat + "_150"
     files = glob.glob(image_dir + "/*")
     for f in files:
         allfiles.append((idx, f))
@@ -54,7 +54,6 @@ X_test, y_test = make_sample(test)
 xy = (X_train, X_test, y_train, y_test)
 #データを保存する（データの名前を「tea_data.npy」としている）
 np.save("/Users/ayano/Downloads/neko_collector-main/neko_collector/labeling/neko_data.npy", xy)
-
 
 
 #モデルの構築
@@ -72,7 +71,7 @@ model.add(layers.Conv2D(128,(3,3),activation="relu"))
 model.add(layers.MaxPooling2D((2,2)))
 model.add(layers.Flatten())
 model.add(layers.Dense(512,activation="relu"))
-model.add(layers.Dense(4,activation="sigmoid")) #分類先の種類分設定
+model.add(layers.Dense(2,activation="sigmoid")) #分類先の種類分設定
 
 #モデル構成の確認
 model.summary()
@@ -95,7 +94,7 @@ from keras.utils import np_utils
 
 import numpy as np
 
-categories = ["sinkeisitu","otonasi","natukko", "yancha"]
+categories = ["otonasi","yancha"]
 nb_classes = len(categories)
 
 X_train, X_test, y_train, y_test = np.load("/Users/ayano/Downloads/neko_collector-main/neko_collector/labeling/neko_data.npy", allow_pickle = True)
@@ -111,17 +110,13 @@ y_test  = np_utils.to_categorical(y_test, nb_classes)
 
 
 
-
 #モデルの学習
 
 model = model.fit(X_train,
                   y_train,
-                  epochs=10,
-                  batch_size=6,
+                  epochs=80, #変えながらする。５０、１００くらい
+                  batch_size=64, #ここも変えてっても良さそう
                   validation_data=(X_test,y_test))
-
-
-
 
 #学習結果を表示
 
@@ -174,7 +169,7 @@ eval_Y = np.load("/Users/ayano/Downloads/neko_collector-main/neko_collector/test
 #Yのデータをone-hotに変換
 from keras.utils import np_utils
 
-y_test = np_utils.to_categorical(y_test, 4)
+#y_test = np_utils.to_categorical(y_test, 4)
 
 score = model.model.evaluate(x=X_test,y=y_test)
 
