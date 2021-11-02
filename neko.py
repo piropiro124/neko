@@ -5,6 +5,21 @@ import os, glob
 import numpy as np
 import random, math
 
+
+from sklearn.model_selection import KFold
+
+# (snip)
+
+
+
+    #run_train(session, train_x, train_y)
+   # results.append(session.run(accuracy, feed_dict={x: val_x, y: val_y}))
+  #return results
+
+# (snip)
+
+
+
 #画像が保存されているルートディレクトリのパス
 root_dir = "/Users/ayano/Downloads/neko_collector-main/neko_collector"
 # 商品名
@@ -51,39 +66,66 @@ train = allfiles[0:th]
 test  = allfiles[th:]
 X_train, y_train = make_sample(train)
 X_test, y_test = make_sample(test)
-xy = (X_train, X_test, y_train, y_test)
-#データを保存する（データの名前を「tea_data.npy」としている）
-np.save("/Users/ayano/Downloads/neko_collector-main/neko_collector/labeling/neko_data.npy", xy)
+#xy = (X_train, X_test, y_train, y_test)
+#データを保存する（データの名前を「neko_data.npy」としている）
+
+
+
+kf = KFold(n_splits = 3, shuffle = True)
+
+for train_idx, val_idx in kf.split(X_train, y_train):
+    train_x = X_train[train_idx]
+    train_y = y_train[train_idx]
+    val_x = X_train[val_idx]
+    val_y = y_train[val_idx]
+
+    xy = (train_x, val_x, train_y, val_y)
+    
+
+    np.save("/Users/ayano/Downloads/neko_collector-main/neko_collector/labeling/neko_data.npy", xy)
 
 
 #モデルの構築
+#モデルのコンパイル
 
 from keras import layers, models
+from keras import optimizers
 
-model = models.Sequential()
-model.add(layers.Conv2D(32,(3,3),activation="relu",input_shape=(150,150,3)))
-model.add(layers.MaxPooling2D((2,2)))
-model.add(layers.Conv2D(64,(3,3),activation="relu"))
-model.add(layers.MaxPooling2D((2,2)))
-model.add(layers.Conv2D(128,(3,3),activation="relu"))
-model.add(layers.MaxPooling2D((2,2)))
-model.add(layers.Conv2D(128,(3,3),activation="relu"))
-model.add(layers.MaxPooling2D((2,2)))
-model.add(layers.Flatten())
-model.add(layers.Dense(512,activation="relu"))
-model.add(layers.Dense(2,activation="sigmoid")) #分類先の種類分設定
+def build_model():
+  model = models.Sequential()
+  model.add(layers.Conv2D(32,(3,3),activation="relu",input_shape=(150,150,3)))
+  model.add(layers.MaxPooling2D((2,2)))
+  model.add(layers.Conv2D(64,(3,3),activation="relu"))
+  model.add(layers.MaxPooling2D((2,2)))
+  model.add(layers.Conv2D(128,(3,3),activation="relu"))
+  model.add(layers.MaxPooling2D((2,2)))
+  model.add(layers.Conv2D(128,(3,3),activation="relu"))
+  model.add(layers.MaxPooling2D((2,2)))
+  model.add(layers.Flatten())
+  model.add(layers.Dropout(0.5))
+  model.add(layers.Dense(512,activation="relu"))
+  model.add(layers.Dense(2,activation="sigmoid")) #分類先の種類分設定
+
+  model.compile(loss="binary_crossentropy",
+              optimizer=optimizers.RMSprop(learning_rate=1e-4),
+              metrics=["acc"])
+  return model
+
+
+
+
 
 #モデル構成の確認
-model.summary()
+#model.summary()
 
 
 #モデルのコンパイル
 
-from keras import optimizers
+#from keras import optimizers
 
-model.compile(loss="binary_crossentropy",
-              optimizer=optimizers.RMSprop(learning_rate=1e-4),
-              metrics=["acc"])
+#model.compile(loss="binary_crossentropy",
+#              optimizer=optimizers.RMSprop(learning_rate=1e-4), 
+#              metrics=["acc"])
 
 
 
@@ -112,7 +154,12 @@ y_test  = np_utils.to_categorical(y_test, nb_classes)
 
 #モデルの学習
 
-model = model.fit(X_train,
+original_model = build_model()
+
+#モデル構成の確認
+original_model.summary()
+
+model = original_model.fit(X_train,
                   y_train,
                   epochs=80, #変えながらする。５０、１００くらい
                   batch_size=64, #ここも変えてっても良さそう
@@ -128,6 +175,27 @@ loss = model.history['loss']
 val_loss = model.history['val_loss']
 
 epochs = range(len(acc))
+
+
+all_acc=[]
+all_val_acc=[]
+all_loss=[]
+all_val_loss=[]
+
+all_acc.append(acc)
+all_val_acc.append(val_acc)
+all_loss.append(loss)
+all_val_loss.append(val_loss) 
+
+
+ave_all_loss=[
+    np.mean([x[i] for x in all_loss]) for i in range(epochs)]
+ave_all_val_loss=[
+    np.mean([x[i] for x in all_val_loss]) for i in range(epochs)]
+ave_all_acc=[
+    np.mean([x[i] for x in all_acc]) for i in range(epochs)]
+ave_all_val_acc=[
+    np.mean([x[i] for x in all_val_acc]) for i in range(epochs)]
 
 plt.plot(epochs, acc, 'bo', label='Training acc')
 plt.plot(epochs, val_acc, 'b', label='Validation acc')
